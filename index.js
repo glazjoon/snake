@@ -17,7 +17,7 @@ const Area = function (ctx, size)
 
         ctx.strokeStyle = 'green';
 
-        for (let i = 10; i < size; i += 10)
+        for (let i = 15; i < size; i += 15)
         {
             ctx.moveTo(i, 0);
             ctx.lineTo(i, size);
@@ -74,8 +74,8 @@ const Fruit = function (ctx, size, x, y)
 const Game = function (canvasId)
 {
     const options = {
-        gameSize: 500,
-        squareSize: 10
+        gameSize: 450,
+        squareSize: 15
     }
 
     const canvas = document.querySelector(canvasId[0] === '#' ? canvasId : `#${canvasId}`);
@@ -107,17 +107,17 @@ const Game = function (canvasId)
 
     const toNearestMultipleOfTen = numberToRound =>
     {
-        return Math.ceil(numberToRound / 10) * 10;
+        return Math.ceil(numberToRound / 15) * 15;
     };
 
     const getRandomMultipleOfTen = () =>
     {
-        return toNearestMultipleOfTen(getRandomInt(0, options.gameSize));
+        return toNearestMultipleOfTen(getRandomInt(0, options.gameSize - options.squareSize));
     }
 
     const getUnoccupiedCoordinate = () =>
     {
-        const coord = { x, y } = {
+        let coord = { x, y } = {
             x: getRandomMultipleOfTen(),
             y: getRandomMultipleOfTen()
         };
@@ -141,7 +141,7 @@ const Game = function (canvasId)
             if (snake.occupies(x, y))
             {
                 score++;
-                console.log(score);
+                snake.grow();
                 const newFruitPosition = getUnoccupiedCoordinate();
                 fruit = new Fruit(ctx, options.squareSize, newFruitPosition.x, newFruitPosition.y);
             }
@@ -157,6 +157,7 @@ const Game = function (canvasId)
                 area.clear();
                 snake = new Snake(ctx, options);
                 snake.draw();
+                score = 0;
             }
 
             main();
@@ -203,6 +204,13 @@ const Snake = function (ctx, { gameSize, squareSize })
         parts.forEach(drawPart);
     };
 
+    const grow = () =>
+    {
+        const { x, y } = parts[parts.length - 1];
+
+        parts.push({ x: x + squareSize, y });
+    };
+
     const occupies = (x, y) => parts.some(p => p.x === x && p.y === y);
 
     const lives = () =>
@@ -246,7 +254,7 @@ const Snake = function (ctx, { gameSize, squareSize })
         return parts[0];
     }
 
-    return { draw, occupies, lives, move, turn };
+    return { draw, grow, lives, move, occupies, turn };
 };
 
 const game = new Game('#game');
