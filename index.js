@@ -56,13 +56,18 @@ const Fruit = function (ctx, size, x, y)
         ctx.fillStyle = 'red';
         ctx.strokeStyle = 'darkred';
 
-        ctx.arc(x - size / 2, y - size / 2, size / 2, 0, 2 * Math.PI)
+        // ctx.fillRect(x, y, size, size);
+
+        ctx.arc(x + size / 2, y + size / 2, size / 2, 0, 2 * Math.PI)
         ctx.fill();
         ctx.stroke();
+
         ctx.closePath();
     }
 
-    return { draw }
+    const getPosition = () => ({ x, y });
+
+    return { draw, getPosition }
 }
 
 // GAME
@@ -70,7 +75,7 @@ const Game = function (canvasId)
 {
     const options = {
         gameSize: 500,
-        snakeSize: 10
+        squareSize: 10
     }
 
     const canvas = document.querySelector(canvasId[0] === '#' ? canvasId : `#${canvasId}`);
@@ -81,6 +86,8 @@ const Game = function (canvasId)
 
     const area = new Area(ctx, options.gameSize);
     let snake = new Snake(ctx, options);
+    let fruit;
+    let score = 0;
 
     const addListeners = () =>
     {
@@ -129,6 +136,16 @@ const Game = function (canvasId)
         {
             snake.move();
 
+            let { x, y } = fruit.getPosition();
+
+            if (snake.occupies(x, y))
+            {
+                score++;
+                console.log(score);
+                const newFruitPosition = getUnoccupiedCoordinate();
+                fruit = new Fruit(ctx, options.squareSize, newFruitPosition.x, newFruitPosition.y);
+            }
+
             if (snake.lives())
             {
                 area.clear();
@@ -150,7 +167,7 @@ const Game = function (canvasId)
     {
         const { x, y } = getUnoccupiedCoordinate();
 
-        fruit = new Fruit(ctx, options.snakeSize, x, y);
+        fruit = new Fruit(ctx, options.squareSize, x, y);
         main();
         addListeners();
     };
@@ -159,16 +176,16 @@ const Game = function (canvasId)
 }
 
 // SNAKE
-const Snake = function (ctx, { gameSize, snakeSize })
+const Snake = function (ctx, { gameSize, squareSize })
 {
     const parts = [];
 
-    let dx = snakeSize;
+    let dx = squareSize;
     let dy = 0;
 
     for (let i = 0; i < 5; i++)
     {
-        parts.push({ x: gameSize / 2 - (i * snakeSize), y: gameSize / 2 })
+        parts.push({ x: gameSize / 2 - (i * squareSize), y: gameSize / 2 })
     }
 
     const drawPart = ({ x, y }) =>
@@ -177,8 +194,8 @@ const Snake = function (ctx, { gameSize, snakeSize })
         ctx.strokeStyle = 'black';
 
         ctx.beginPath();
-        ctx.fillRect(x, y, snakeSize, snakeSize);
-        ctx.strokeRect(x, y, snakeSize, snakeSize);
+        ctx.fillRect(x, y, squareSize, squareSize);
+        ctx.strokeRect(x, y, squareSize, squareSize);
     };
 
     const draw = () =>
@@ -203,19 +220,19 @@ const Snake = function (ctx, { gameSize, snakeSize })
         switch (direction)
         {
             case Direction.UP:
-                dy = -snakeSize;
+                dy = -squareSize;
                 dx = 0;
                 break;
             case Direction.DOWN:
-                dy = snakeSize;
+                dy = squareSize;
                 dx = 0;
                 break;
             case Direction.LEFT:
-                dx = -snakeSize;
+                dx = -squareSize;
                 dy = 0;
                 break;
             case Direction.RIGHT:
-                dx = snakeSize;
+                dx = squareSize;
                 dy = 0;
                 break;
         }
