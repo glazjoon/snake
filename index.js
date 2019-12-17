@@ -1,3 +1,16 @@
+// Helpers
+const getRandomInt = (min, max) =>
+{
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+const roundToNearestMultipleOf = (multiple, numberToRound) =>
+{
+    return Math.ceil(numberToRound / multiple) * multiple;
+}
+
 // Direction
 const Direction = {
     UP: 38,
@@ -9,21 +22,25 @@ const Direction = {
 Object.freeze(Direction);
 
 // AREA
-const Area = function (ctx, size)
+const Area = function (ctx, options)
 {
+    const { gameSize, squareSize, showGrid } = options;
+
+    const clear = () => draw();
+
     const drawGrid = () =>
     {
         ctx.beginPath();
 
         ctx.strokeStyle = 'green';
 
-        for (let i = 15; i < size; i += 15)
+        for (let i = squareSize; i < gameSize; i += squareSize)
         {
             ctx.moveTo(i, 0);
-            ctx.lineTo(i, size);
+            ctx.lineTo(i, gameSize);
 
             ctx.moveTo(0, i);
-            ctx.lineTo(size, i);
+            ctx.lineTo(gameSize, i);
         }
 
         ctx.stroke();
@@ -31,24 +48,29 @@ const Area = function (ctx, size)
         ctx.closePath();
     };
 
-    const clear = () => draw();
-
     const draw = () =>
     {
         ctx.fillStyle = 'forestgreen';
         ctx.strokeStyle = 'black';
 
-        ctx.fillRect(0, 0, size, size);
-        ctx.strokeRect(0, 0, size, size);
+        ctx.fillRect(0, 0, gameSize, gameSize);
+        ctx.strokeRect(0, 0, gameSize, gameSize);
 
-        drawGrid();
+        if (showGrid)
+        {
+            drawGrid();
+        }
     }
 
-    return { clear };
+    return { clear, draw };
 }
 
-const Fruit = function (ctx, size, x, y)
+const Fruit = function (ctx, position, options)
 {
+    const { squareSize } = options;
+
+    let { x, y } = position;
+
     const draw = () =>
     {
         ctx.beginPath();
@@ -56,9 +78,10 @@ const Fruit = function (ctx, size, x, y)
         ctx.fillStyle = 'red';
         ctx.strokeStyle = 'darkred';
 
-        // ctx.fillRect(x, y, size, size);
+        const radius = squareSize / 2;
 
-        ctx.arc(x + size / 2, y + size / 2, size / 2, 0, 2 * Math.PI)
+        ctx.arc(x + radius, y + radius, radius, 0, 2 * Math.PI)
+
         ctx.fill();
         ctx.stroke();
 
@@ -67,68 +90,69 @@ const Fruit = function (ctx, size, x, y)
 
     const getPosition = () => ({ x, y });
 
-    return { draw, getPosition }
+    const move = ({ x: newX, y: newY }) =>
+    {
+        x = newX;
+        y = newY;
+    };
+
+    return { draw, move, getPosition }
 }
 
 // GAME
-const Game = function (canvasId)
+const Game = function (userOptions)
 {
-    const options = {
+    const defaultOptions = {
+        canvasId: '#snakeGame',
         gameSize: 450,
+        showGrid: false,
         squareSize: 15
-    }
+    };
+
+    const options = Object.assign(defaultOptions, userOptions);
+    const { canvasId, gameSize, squareSize } = options;
 
     const canvas = document.querySelector(canvasId[0] === '#' ? canvasId : `#${canvasId}`);
 
-    canvas.width = canvas.height = options.gameSize;
+    canvas.width = canvas.height = gameSize;
 
     const ctx = canvas.getContext('2d');
 
-    const area = new Area(ctx, options.gameSize);
+    const area = new Area(ctx, options);
     let snake = new Snake(ctx, options);
     let fruit;
+
     let score = 0;
 
     const addListeners = () =>
     {
-        // Snake Controls
         document.addEventListener('keydown', evt =>
         {
             snake.turn(evt.keyCode);
         });
     };
 
-    const getRandomInt = (min, max) =>
+    const getRandomSquare = () =>
     {
-        min = Math.ceil(min);
-        max = Math.floor(max);
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-    }
+        const max = options.gameSize - options.squareSize;
 
-    const toNearestMultipleOfTen = numberToRound =>
-    {
-        return Math.ceil(numberToRound / 15) * 15;
+        return {
+            x: roundToNearestMultipleOf(squareSize, getRandomInt(0, max)),
+            y: roundToNearestMultipleOf(squareSize, getRandomInt(0, max))
+        }
     };
 
-    const getRandomMultipleOfTen = () =>
+    const getUnoccupiedSquare = () =>
     {
-        return toNearestMultipleOfTen(getRandomInt(0, options.gameSize - options.squareSize));
-    }
+        let square = getRandomSquare();
 
-    const getUnoccupiedCoordinate = () =>
-    {
-        let coord = { x, y } = {
-            x: getRandomMultipleOfTen(),
-            y: getRandomMultipleOfTen()
-        };
-
-        while (snake.occupies(x, y))
+        while (snake.occupies(square))
         {
-            coord = getRandomMultipleOfTen();
+            square = getRandomSquare();
         }
 
-        return coord;
-    }
+        return square;
+    };
 
     const main = () =>
     {
@@ -136,28 +160,25 @@ const Game = function (canvasId)
         {
             snake.move();
 
-            let { x, y } = fruit.getPosition();
-
-            if (snake.occupies(x, y))
+            if (snake.occupies(fruit.getPosition()))
             {
                 score++;
                 snake.grow();
-                const newFruitPosition = getUnoccupiedCoordinate();
-                fruit = new Fruit(ctx, options.squareSize, newFruitPosition.x, newFruitPosition.y);
+
+                fruit.move(getUnoccupiedSquare());
+                console.log(fruit.getPosition());
             }
+
+            area.clear()
 
             if (snake.lives())
             {
-                area.clear();
                 fruit.draw();
                 snake.draw();
             }
             else
             {
-                area.clear();
-                snake = new Snake(ctx, options);
-                snake.draw();
-                score = 0;
+                location.reload();
             }
 
             main();
@@ -166,9 +187,7 @@ const Game = function (canvasId)
 
     const start = () =>
     {
-        const { x, y } = getUnoccupiedCoordinate();
-
-        fruit = new Fruit(ctx, options.squareSize, x, y);
+        fruit = new Fruit(ctx, getUnoccupiedSquare(), options);
         main();
         addListeners();
     };
@@ -211,7 +230,7 @@ const Snake = function (ctx, { gameSize, squareSize })
         parts.push({ x: x + squareSize, y });
     };
 
-    const occupies = (x, y) => parts.some(p => p.x === x && p.y === y);
+    const occupies = ({ x, y }) => parts.some(p => p.x === x && p.y === y);
 
     const lives = () =>
     {
@@ -257,6 +276,6 @@ const Snake = function (ctx, { gameSize, squareSize })
     return { draw, grow, lives, move, occupies, turn };
 };
 
-const game = new Game('#game');
+const game = new Game({ canvasId: '#game', showGrid: true });
 
 document.addEventListener('DOMContentLoaded', game.start);
