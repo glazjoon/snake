@@ -1,26 +1,68 @@
-// KEYS
-const Keys = {
+// Direction
+const Direction = {
     UP: 38,
     DOWN: 40,
     LEFT: 37,
     RIGHT: 39
 };
 
-Object.freeze(Keys);
+Object.freeze(Direction);
 
 // AREA
 const Area = function (ctx, size)
 {
-    const clear = () =>
+    const drawGrid = () =>
+    {
+        ctx.beginPath();
+
+        ctx.strokeStyle = 'green';
+
+        for (let i = 10; i < size; i += 10)
+        {
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i, size);
+
+            ctx.moveTo(0, i);
+            ctx.lineTo(size, i);
+        }
+
+        ctx.stroke();
+
+        ctx.closePath();
+    };
+
+    const clear = () => draw();
+
+    const draw = () =>
     {
         ctx.fillStyle = 'forestgreen';
         ctx.strokeStyle = 'black';
 
         ctx.fillRect(0, 0, size, size);
         ctx.strokeRect(0, 0, size, size);
+
+        drawGrid();
     }
 
     return { clear };
+}
+
+const Fruit = function (ctx, size, x, y)
+{
+    const draw = () =>
+    {
+        ctx.beginPath();
+
+        ctx.fillStyle = 'red';
+        ctx.strokeStyle = 'darkred';
+
+        ctx.arc(x - size / 2, y - size / 2, size / 2, 0, 2 * Math.PI)
+        ctx.fill();
+        ctx.stroke();
+        ctx.closePath();
+    }
+
+    return { draw }
 }
 
 // GAME
@@ -38,31 +80,77 @@ const Game = function (canvasId)
     const ctx = canvas.getContext('2d');
 
     const area = new Area(ctx, options.gameSize);
-    const snake = new Snake(ctx, options);
+    let snake = new Snake(ctx, options);
 
     const addListeners = () =>
     {
         // Snake Controls
         document.addEventListener('keydown', evt =>
         {
-            snake.turn(evt);
-            console.log(evt.keyCode);
+            snake.turn(evt.keyCode);
         });
     };
+
+    const getRandomInt = (min, max) =>
+    {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    const toNearestMultipleOfTen = numberToRound =>
+    {
+        return Math.ceil(numberToRound / 10) * 10;
+    };
+
+    const getRandomMultipleOfTen = () =>
+    {
+        return toNearestMultipleOfTen(getRandomInt(0, options.gameSize));
+    }
+
+    const getUnoccupiedCoordinate = () =>
+    {
+        const coord = { x, y } = {
+            x: getRandomMultipleOfTen(),
+            y: getRandomMultipleOfTen()
+        };
+
+        while (snake.occupies(x, y))
+        {
+            coord = getRandomMultipleOfTen();
+        }
+
+        return coord;
+    }
 
     const main = () =>
     {
         setTimeout(function onTick()
         {
-            area.clear();
             snake.move();
-            snake.draw();
+
+            if (snake.lives())
+            {
+                area.clear();
+                fruit.draw();
+                snake.draw();
+            }
+            else
+            {
+                area.clear();
+                snake = new Snake(ctx, options);
+                snake.draw();
+            }
+
             main();
         }, 80)
     }
 
     const start = () =>
     {
+        const { x, y } = getUnoccupiedCoordinate();
+
+        fruit = new Fruit(ctx, options.snakeSize, x, y);
         main();
         addListeners();
     };
@@ -77,8 +165,6 @@ const Snake = function (ctx, { gameSize, snakeSize })
 
     let dx = snakeSize;
     let dy = 0;
-
-    let previousKeyCode = Keys.RIGHT;
 
     for (let i = 0; i < 5; i++)
     {
@@ -100,38 +186,50 @@ const Snake = function (ctx, { gameSize, snakeSize })
         parts.forEach(drawPart);
     };
 
-    const turn = ({ keyCode }) =>
+    const occupies = (x, y) => parts.some(p => p.x === x && p.y === y);
+
+    const lives = () =>
     {
-        switch (keyCode)
+        const { x, y } = parts[0];
+
+        const intersect = parts.slice(1).some(p => p.x === x && p.y === y);
+        const outOfBounds = x < 0 || x > gameSize || y < 0 || y > gameSize;
+
+        return !intersect && !outOfBounds;
+    };
+
+    const turn = direction =>
+    {
+        switch (direction)
         {
-            case Keys.UP:
+            case Direction.UP:
                 dy = -snakeSize;
                 dx = 0;
                 break;
-            case Keys.DOWN:
+            case Direction.DOWN:
                 dy = snakeSize;
                 dx = 0;
                 break;
-            case Keys.LEFT:
+            case Direction.LEFT:
                 dx = -snakeSize;
                 dy = 0;
                 break;
-            case Keys.RIGHT:
+            case Direction.RIGHT:
                 dx = snakeSize;
                 dy = 0;
                 break;
         }
-
-        previousKeyCode = keyCode;
     };
 
     const move = () =>
     {
         parts.unshift({ x: parts[0].x + dx, y: parts[0].y + dy });
         parts.pop();
+
+        return parts[0];
     }
 
-    return { draw, move, turn };
+    return { draw, occupies, lives, move, turn };
 };
 
 const game = new Game('#game');
