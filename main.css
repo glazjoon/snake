@@ -4,7 +4,7 @@ html, body {
 }
 
 body {
-    background-image: url('./bg.jpg');
+    background-image: url('./static/bg.jpg');
     background-position: center;
     margin: 0;
 }
@@ -21,6 +21,6 @@ body {
 
 canvas {
     display: block;
-    background-image: url('./bg.jpg');
+    background-image: url('./static/bg.jpg');
     background-position: center;
 }
